@@ -21,9 +21,17 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ScrollView;
+
+import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.RecyclerView;
 
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import com.smouldering_durtles.wk.Actment;
@@ -72,10 +80,38 @@ public abstract class AbstractFragment extends Fragment implements Actment {
         });
     }
 
+    private static @Nullable View findFirstScrollable(final View root) {
+        if (root instanceof ScrollView || root instanceof NestedScrollView || root instanceof RecyclerView) {
+            return root;
+        }
+        if (root instanceof ViewGroup) {
+            final ViewGroup group = (ViewGroup) root;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                final @Nullable View found = findFirstScrollable(group.getChildAt(i));
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     @Override
     public final void onViewCreated(final View view, final @Nullable Bundle savedInstanceState) {
         safe(() -> {
             super.onViewCreated(view, savedInstanceState);
+            ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
+                final Insets navBar = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars());
+                final @Nullable View scrollable = findFirstScrollable(v);
+                if (scrollable instanceof ViewGroup) {
+                    ((ViewGroup) scrollable).setClipToPadding(false);
+                    scrollable.setPadding(scrollable.getPaddingLeft(), scrollable.getPaddingTop(),
+                            scrollable.getPaddingRight(), navBar.bottom);
+                } else {
+                    v.setPadding(v.getPaddingLeft(), v.getPaddingTop(), v.getPaddingRight(), navBar.bottom);
+                }
+                return WindowInsetsCompat.CONSUMED;
+            });
             onViewCreatedLocal(view, savedInstanceState);
         });
     }

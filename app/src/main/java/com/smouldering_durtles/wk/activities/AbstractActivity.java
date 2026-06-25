@@ -31,6 +31,7 @@ import android.widget.SearchView;
 import android.widget.Toast;
 
 import androidx.core.graphics.ColorUtils;
+import androidx.core.widget.NestedScrollView;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
@@ -44,8 +45,13 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ScrollView;
 
 import com.smouldering_durtles.wk.Actment;
 import com.smouldering_durtles.wk.GlobalSettings;
@@ -185,16 +191,44 @@ public abstract class AbstractActivity extends AppCompatActivity implements Shar
         }
     }
 
+    private static @Nullable View findActivityScrollable(final View root) {
+        if (root instanceof FragmentContainerView) {
+            return null;
+        }
+        if (root instanceof ScrollView || root instanceof NestedScrollView) {
+            return root;
+        }
+        if (root instanceof ViewGroup) {
+            final ViewGroup group = (ViewGroup) root;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                final @Nullable View found = findActivityScrollable(group.getChildAt(i));
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     private void onCreateBase() {
         creationTheme = ActiveTheme.getCurrentTheme();
         setContentView(layoutId);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content), (v, windowInsets) -> {
-            final Insets insets = windowInsets.getInsets(
-                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime());
-            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
-            return WindowInsetsCompat.CONSUMED;
+            final Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            final Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, ime.bottom);
+            // Apply nav bar bottom padding to any scrollable view directly in the activity layout
+            // (stops at FragmentContainerView — fragments handle their own insets)
+            final View activityScrollable = findActivityScrollable(v);
+            if (activityScrollable instanceof ViewGroup) {
+                ((ViewGroup) activityScrollable).setClipToPadding(false);
+                activityScrollable.setPadding(
+                        activityScrollable.getPaddingLeft(), activityScrollable.getPaddingTop(),
+                        activityScrollable.getPaddingRight(), systemBars.bottom);
+            }
+            return windowInsets; // pass through so fragment views receive insets
         });
 
         final TypedValue typedValue = new TypedValue();
