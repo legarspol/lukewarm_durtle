@@ -26,6 +26,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.os.Build;
 
+import androidx.core.content.ContextCompat;
 import androidx.core.net.ConnectivityManagerCompat;
 import androidx.multidex.MultiDexApplication;
 
@@ -147,7 +148,7 @@ public final class WkApplication extends MultiDexApplication {
         }
 
         final IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        registerReceiver(new BroadcastReceiver() {
+        ContextCompat.registerReceiver(this, new BroadcastReceiver() {
             @Override
             public void onReceive(final Context context, final Intent intent) {
                 safe(() -> {
@@ -161,7 +162,7 @@ public final class WkApplication extends MultiDexApplication {
                     JobRunnerService.schedule(NetworkStateChangedJob.class, onlineStatus.name());
                 });
             }
-        }, filter);
+        }, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @TargetApi(24)
